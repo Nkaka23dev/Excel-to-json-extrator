@@ -95,9 +95,13 @@ app.post("/read", upload.single(), async (req: any, res: any) => {
         },
       });
       const finalData: FinalAnswer[] = await dataTransform(excelData.Answers);
-      finalData.map((value: FinalAnswer) => {
+      finalData.shift();
+      console.log(
+        finalData.length,
+        "This is the final length of my array, Please not it here....."
+      );
+      finalData.map((value: FinalAnswer, index: number) => {
         (async () => {
-          console.log("THIS IS RUNNING INSIDE POSTING OBJECT");
           try {
             let imgUrl: null | string = null;
             if (value.img) {
@@ -109,6 +113,7 @@ app.post("/read", upload.single(), async (req: any, res: any) => {
               imgUrl = await getDownloadURL(uploadTask.ref);
             }
             const dataToAdd = {
+              number: index,
               title: value.title,
               userChoice: value.userChoice,
               choices: value.choices,
@@ -163,31 +168,33 @@ app.get("/", (req: any, res: any) => {
 });
 
 async function dataTransform(excelData: ExcelDataType[]) {
-  const questions = new Set(excelData.map((el) => el["izina ry'ikibazo"]));
+  const questionCodes = new Set(excelData.map((el) => el["Code y'ikibazo"]));
   const images: ImageExtractor[] = await extraxt_images();
-  const finalAnswers: FinalAnswer[] = [...questions].map((question, index) => {
-    const sameQuestions = excelData.filter(
-      (el) => el["izina ry'ikibazo"] === question
-    );
-    return {
-      id: index + 1,
-      title: question,
-      userChoice: null,
-      choices: sameQuestions.map((sqs, i) => {
-        return {
-          id: i + 1,
-          alf: sqs["Code y'igisubizo"],
-          q: sqs["izina ry'ikibazo Cyambere"],
-          userChoiceOnItem: null,
-          answer: sqs["Code y'igisubizo"] === sqs["igisubizo cy'ukuri"],
-        };
-      }),
-      img:
-        images.find(
-          (value) => value.questionId === sameQuestions[0]["Code y'ikibazo"]
-        )?.image || null,
-    };
-  });
+  const finalAnswers: FinalAnswer[] = [...questionCodes].map(
+    (questionCode, index) => {
+      const sameQuestions = excelData.filter(
+        (el, index) => el["Code y'ikibazo"] === questionCode
+      );
+      return {
+        id: index + 1,
+        title: sameQuestions[0]["izina ry'ikibazo"],
+        userChoice: null,
+        choices: sameQuestions.map((sqs, i) => {
+          return {
+            id: i + 1,
+            alf: sqs["Code y'igisubizo"],
+            q: sqs["izina ry'ikibazo Cyambere"],
+            userChoiceOnItem: null,
+            answer: sqs["Code y'igisubizo"] === sqs["igisubizo cy'ukuri"],
+          };
+        }),
+        img:
+          images.find(
+            (value) => value.questionId === sameQuestions[0]["Code y'ikibazo"]
+          )?.image || null,
+      };
+    }
+  );
   return finalAnswers;
 }
 
